@@ -17,30 +17,19 @@ add_action( 'add_meta_boxes', __NAMESPACE__ . '\register_metaboxes' );
 
 function register_admin_script() {
 	wp_enqueue_script( 'wp_img_upload', plugin_dir_url( __FILE__ ) . '/image-upload.js', array('jquery', 'media-upload'), '0.0.2', true );
-	wp_enqueue_style( 'img_upload-css', plugin_dir_url( __FILE__ ) . '/image-upload.css', '0.0.2' );
+	wp_localize_script( 'wp_img_upload', 'customUploads', array( 'imageData' => get_post_meta( get_the_ID(), 'custom_image_data', true ) ) );
 }
 add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\register_admin_script' );
 
 function image_uploader_callback( $post_id ) {
-	wp_nonce_field( basename( __FILE__ ), 'custom_image_nonce' );
-	$image_data = get_post_meta( get_the_ID(), 'custom_image_data', true );
+	wp_nonce_field( basename( __FILE__ ), 'custom_image_nonce' ); ?>
 
-	$img_style = '';
-	$delete_style = 'display: none;';
-	if ( isset( $image_data ) ) {
-		$img_style = 'width: 100%;';
-		$delete_style = '';
-	}
-	?>
-
-	<div id="image_wrapper">
-		<?php printf( '<img id="image-upload-tag" src="%s" style="%s">', esc_url( $image_data['src'] ), esc_attr( $img_style ) ); ?>
-		<?php printf( '<input type="hidden" id="img-hidden-field" name="custom_image_data" value="%s">', esc_attr( $image_data ) ); ?>
-
+	<div id="metabox_wrapper">
+		<img id="image-tag">
+		<input type="hidden" id="img-hidden-field" name="custom_image_data">
 		<input type="button" id="image-upload-button" class="button" value="Add Image">
-		<input type="button" id="image-delete-button" class="button" value="Delete Image" style="<?php esc_attr_e( $delete_style ); ?>">
+		<input type="button" id="image-delete-button" class="button" value="Delete Image">
 	</div>
-
 
 	<?php
 }
@@ -57,12 +46,15 @@ function save_custom_image( $post_id ) {
 
 	if ( isset( $_POST[ 'custom_image_data' ] ) ) {
 		$image_data = json_decode( stripslashes( $_POST[ 'custom_image_data' ] ) );
-		$img_id = $image_data[0]->id;
-		$img_src = $image_data[0]->url;
+		if ( is_object( $image_data[0] ) ) {
+			$image_data = array( 'id' => intval( $image_data[0]->id ), 'src' => esc_url_raw( $image_data[0]->url
+			) );
+		} else {
+			$image_data = [];
+		}
 
-		update_post_meta( $post_id, 'custom_image_data', array( 'id' => intval( $img_id ), 'src' => esc_url_raw( $img_src ) ) );
+		update_post_meta( $post_id, 'custom_image_data', $image_data );
 	}
-
 
 }
 add_action( 'save_post', __NAMESPACE__ . '\save_custom_image' );
